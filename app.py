@@ -62,8 +62,6 @@ import gradio_client
 print(f"Gradio version: {gr.__version__}")
 print(f"Gradio-client version: {gradio_client.__version__}")
 
-device = torch.device("musa" if torch.musa.is_available() else "cpu")
-
 class InferenceDemo(object):
     def __init__(
         self, args, model_path, tokenizer, model, image_processor, context_len
@@ -214,7 +212,7 @@ def bot(history):
             0
         ]
         .half()
-        .to(device)
+        .to(our_chatbot.model.device)
         for f in image_list
     ]
 
@@ -235,7 +233,7 @@ def bot(history):
             prompt, our_chatbot.tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt"
         )
         .unsqueeze(0)
-        .to(device)
+        .to(our_chatbot.model.device)
     )
     stop_str = (
         our_chatbot.conversation.sep
@@ -249,9 +247,9 @@ def bot(history):
     streamer = TextStreamer(
         our_chatbot.tokenizer, skip_prompt=True, skip_special_tokens=True
     )
-    print(our_chatbot.model.device)
-    print(input_ids.device)
-    print(image_tensor.device)
+    print(f"our_chatbot.model.device: {our_chatbot.model.device}")
+    print(f"input_ids.device: {input_ids.device}")
+    print(f"image_tensor.device: {image_tensor.device}")
     # import pdb;pdb.set_trace()
     with torch.inference_mode():
         output_ids = our_chatbot.model.generate(
@@ -264,7 +262,6 @@ def bot(history):
             use_cache=False,
             stopping_criteria=[stopping_criteria],
         )
-
     outputs = our_chatbot.tokenizer.decode(output_ids[0]).strip()
     if outputs.endswith(stop_str):
         outputs = outputs[: -len(stop_str)]
@@ -449,6 +446,6 @@ if __name__ == "__main__":
     filt_invalid = "cut"
     model_name = get_model_name_from_path(args.model_path)
     tokenizer, model, image_processor, context_len = load_pretrained_model(args.model_path, args.model_base, model_name, args.load_8bit, args.load_4bit)
-    model=model.to(device)
+    # model=model.to(device)
     our_chatbot = None
     demo.launch(server_name=args.server_name, server_port=int(args.port))
